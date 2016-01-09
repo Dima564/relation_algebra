@@ -59,7 +59,7 @@ def symmetric_part(r):
 def asymmetric_part(r):
     return r * np.logical_not(r.transpose())
 
-def uncomaparable(r):
+def uncomaparable_part(r):
     return np.logical_not(r + r.transpose()).astype(int)
 
 # Section factorization
@@ -84,7 +84,7 @@ def largest_for_R(r):
 
 
 def strict_largest_for_R(r):
-    return set([i for i in range(0, len(r)) if upper(r, i) <= set([i]) and lower(r, i) == set(range(0, len(r)))])
+    return {i for i in range(0, len(r)) if upper(r, i) <= {i} and lower(r, i) == set(range(0, len(r)))}
 
 # Section blocking
 
@@ -110,7 +110,46 @@ def calc_C_sets(r):
 def neuman_morgenstern(r):
     C = calc_C_sets(r)
     elements = np.hstack(map(lambda i: list(C[i] - C[i-1]), range(1, len(C))))
-    return reduce(lambda s, i: s | set([i]) if not upper(r, i) & s else s, elements, set())
+    return reduce(lambda s, i: s | {i} if not upper(r, i) & s else s, elements, set())
+
+
+# Section k-optimization
+
+# Vectorized nonzero
+def vec_nonzero(a):
+    return [set(ai.nonzero()[0]) for i, ai in enumerate(a)]
+
+# returns list of sets of element indexes, every ith set correspind to Hr0(i)
+def Hr0(r):
+    return vec_nonzero(r * np.logical_not(r).transpose() * np.logical_not(np.eye(len(r))))
+
+def Er(r):
+    return vec_nonzero(r * r.transpose() + np.eye(len(r)))
+
+def Nr(r):
+    return vec_nonzero(np.logical_not(r) * np.logical_not(r).transpose() * np.logical_not(np.eye(len(r))))
+
+def get_Sk(r):
+    hr0 = Hr0(r)
+    er = Er(r)
+    nr = Nr(r)
+    # Meh. Should've used Matlab with it's vectorization
+    return [[hr0[i] | er[i] | nr[i], hr0[i] | nr[i], hr0[i] | er[i], hr0[i]] for i in range(0, len(r))]
+
+# Ski is an ith column of Sk
+def get_i_max(Ski):
+    a = set()
+    for i, ith_row in enumerate(Ski):
+        for j, jth_row in enumerate(Ski):
+            if ith_row < jth_row:
+                break
+        else:
+            a.add(i)
+    return a
+
+def get_k_max(Sk):
+    return [get_i_max(Sk[:, i]) for i in range(0, 4)]
+
 
 # Section properties
 def properties(r):
@@ -131,7 +170,7 @@ def properties(r):
 
 # Section relation classes
 def equivalence(props=set()):
-    return set(["reflexive", "symmetric", "transitive"]).issubset(props)
+    return {"reflexive", "symmetric", "transitive"} <= props
 
 def strict_order(props=set()):
     return set(["irreflexive", "transitive"]).issubset(props)
@@ -145,8 +184,6 @@ def pre_order(props=set()):  # quazi-order
 def weak_ordering(props=set()):
     return set(["asymmetric", "negative_transitive"]).issubset(props)
 
-
-
 def get_relation_info(r):
     props = properties(r)
     classes = set()
@@ -158,19 +195,56 @@ def get_relation_info(r):
     return (props, classes)
 
 
+def print_sk(Sk):
+    row_format = "{x[0]:30}{x[1]:30}{x[2]:30}{x[3]:30}"
+    for i, row in enumerate(Sk):
+        print row_format.format(x=map(pretty_print_set, row))
+
+def pretty_print_set(s):
+    return "{" + ", ".join(str(v) for v in list(s)) + "}"
+
+def pp(s):
+    return pretty_print_set(s)
+
 def main():
     # eq = np.genfromtxt('factorize_example_eq.csv', delimiter=',').astype(bool)
-    r = np.genfromtxt('42.csv', delimiter=',').astype(int)
-    a = neuman_morgenstern(r)
-    print a
 
-    # nr = uncomaparable(r):
+    r = np.genfromtxt('43.csv', delimiter=',').astype(int)
+    print "Relation: \n", r
+    props, classes = get_relation_info(r)
+    print "Properties: %s" % pretty_print_set(props)
+    print "Classes: %s" % pretty_print_set(classes)
 
-    # print get_relation_info(r)
-    # print get_relation_info(asym_part)
-    # print get_relation_info(sym_part)
-    # print get_relation_info(nr)
-    # print
+    sym, asym, uc = symmetric_part(r), asymmetric_part(r), uncomaparable_part(r)
+    p_asym, c_asym = get_relation_info(asym)
+    p_sym, c_sym = get_relation_info(sym)
+    p_uc, c_uc = get_relation_info(uc)
+    print "\nAsymmetric part:\n", sym
+    print "Properties: %s" % pretty_print_set(p_asym)
+    print "Classes: %s" % pretty_print_set(c_asym)
+    print "\nSymmetric part:\n", asym
+    print "Properties: %s" % pretty_print_set(p_sym)
+    print "Classes: %s" % pretty_print_set(c_sym)
+    print "\nUncomparable part:\n", uc
+    print "Properties: %s" % pretty_print_set(p_uc)
+    print "Classes: %s" % pretty_print_set(c_uc)
 
+    print
+    print "Largest for R:", pp(largest_for_R(r))
+    print "Strict Largest for R:", pp(strict_largest_for_R(r))
+    print "Largest for P:", pp(largest_for_P(r))
+
+    print
+    print "Max for R:", pp(max_for_R(r))
+    print "Strict Max for R:", pp(strict_max_for_R(r))
+    print "Max for P:", pp(max_for_P(r))
+
+    print
+    print "Neuman-Morgenstern solution:\n" + pp(neuman_morgenstern(r))
+
+    a = np.array(get_Sk(r))
+    print "\nSk table:"
+    print_sk(a)
+    print [pp(x) for x in get_k_max(a)]
 
 main()
