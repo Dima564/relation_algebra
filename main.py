@@ -2,6 +2,7 @@
 __author__ = "Kovalenko Dima"
 import numpy as np
 import itertools as it
+import sys
 
 # Note that this code is not designed to be understandable nor readable
 # My goal was to check relation properties in fewest lines possible.
@@ -206,10 +207,10 @@ def pretty_print_set(s):
 def pp(s):
     return pretty_print_set(s)
 
-def main():
-    # eq = np.genfromtxt('factorize_example_eq.csv', delimiter=',').astype(bool)
+def main(filename):
 
-    r = np.genfromtxt('43.csv', delimiter=',').astype(int)
+    r = np.genfromtxt(filename, delimiter=',').astype(int)
+
     print "Relation: \n", r
     props, classes = get_relation_info(r)
     print "Properties: %s" % pretty_print_set(props)
@@ -219,10 +220,10 @@ def main():
     p_asym, c_asym = get_relation_info(asym)
     p_sym, c_sym = get_relation_info(sym)
     p_uc, c_uc = get_relation_info(uc)
-    print "\nAsymmetric part:\n", sym
+    print "\nAsymmetric part:\n", asym
     print "Properties: %s" % pretty_print_set(p_asym)
     print "Classes: %s" % pretty_print_set(c_asym)
-    print "\nSymmetric part:\n", asym
+    print "\nSymmetric part:\n", sym
     print "Properties: %s" % pretty_print_set(p_sym)
     print "Classes: %s" % pretty_print_set(c_sym)
     print "\nUncomparable part:\n", uc
@@ -241,10 +242,14 @@ def main():
 
     print
     print "Neuman-Morgenstern solution:\n" + pp(neuman_morgenstern(r))
-
     a = np.array(get_Sk(r))
     print "\nSk table:"
     print_sk(a)
+    print "\nSets of K-max elements:"
     print [pp(x) for x in get_k_max(a)]
 
-main()
+if len(sys.argv) != 2:
+    print "Usage: python main.py data.csv"
+    main("53.csv")
+else:
+    main(sys.argv[1])
